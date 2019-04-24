@@ -1,0 +1,335 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#**Project 1: An Analysis of Montgomery County, Maryland Crash Data**
+**Antonio Vega, Samuel Westigard**
+
+
+The following report uses crash data
+collected by the Automated Crash Reporting System (ACRS) of the Maryland State Police   
+The data contains approximately 87,000 entries with attributes such as Collision Type, Crash Date/Time and Weather. A full list of attributes is provided below. 
+
+There are two main focuses for the exploration of the data: 
+   
+   1. The relationship between Time of Day, Collision Type, and Injury Severity 
+   
+   2. The relationship between Weather and Number of Accidents and Drug Use
+
+
+--- 
+
+##**Initial Exploration**
+
+To begin with we want a better idea about the state of the information collected in the crash data.
+
+```{r, echo=T}
+dat = read.csv("C:\\Users\\Sam\\Desktop\\CST 383\\Project1\\Crash_Reporting_-_Drivers_Data.csv")
+names(dat)
+length(names(dat))
+nrow(dat)
+
+```
+
+There are 32 different columns in data with 86046 rows.
+
+``` {r}
+sum(is.na(dat))
+
+```
+
+We see there are almost no NA in the data. This seems good but next we will look at the contents of a couple of the columns to determine if there are any strange values that may mess with our results.
+
+``` {r}
+table(dat$Injury.Severity)
+
+```
+``` {r}
+table(dat$Collision.Type)
+```
+
+
+The values "N/A", "OTHER", "UNKOWN" from the Collision Type column do not represent significant results so when we are plotting the date we make the decision to exclude rows with those values. 
+
+
+---
+
+##**Accidents by Time of Day**
+
+First we want to explore if there is a relationship between time and number of crashes.
+
+Time in the data set is given as a date time object, so it will first be converted to a format where it will be easier to extract the hours.
+
+```{r}
+date_time = dat$Crash.Date.Time
+dat$dtime = strptime(as.character(date_time),
+                 "%m/%d/%Y %I:%M:%S %p",
+                 tz="America/New_York")
+
+```
+Here is a comparison of the old Date/Time objects with the new formatted ones
+
+``` {r}
+head(dat$Crash.Date.Time)
+head(dat$dtime)
+```
+
+
+Finally, the extracted hours from the rows can be plotted
+
+``` {r}
+
+par(mar=c(5,5,2,1), mfrow=c(1,1), cex=.8)
+barplot(table(dat$dtime$hour),ylab="Time of Day",xlab="# Accidents", horiz=T, las =1, main="# Acc. by Time of Day", col="firebrick", 
+        names.arg=c("12am", "1am", "2am", "3am", "4am", "5am" ,
+                                      "6am", "7am", "8am", "9am", "10am",
+                                      "11am", "12pm", "1pm", "2pm", "3pm", 
+                                      "4pm", "5pm", "6pm", "7pm", "8pm", "9pm", "10pm",
+                                      "11pm"
+                                      )
+        )
+
+```
+
+It appears that there are two spikes of accidents around 8am and 5pm. This makes sense because more cars will be on the road at that time because of rush hour.
+
+
+---
+
+###**Accidents by Collision Type**
+
+
+###**Accidents by Collision Type and Time of Day** 
+
+
+Next, building on the same graph, we want to see if the proportion of type of collisions changed depending on the time of day. Before doing so we first will look at Collision Types as a single variable
+
+
+Before plotting, we will look at the different values for Collision Type
+``` {r}
+table(dat$Collision.Type)
+```
+
+The three values "UNKNOWN", "N/A", "OTHER" are not significant so we will remove them from our plotting
+
+``` {r}
+par(mar=c(5,15,2,2), cex=.8)
+tbl = table(dat$Collision.Type, exclude=c("OTHER", "UNKNOWN", "N/A"))
+barplot(tbl, horiz=T, las=1, col="firebrick", main="# Acc. by Collision Type", xlab="# Accidents")
+
+```
+
+From the graph we can see that Same Direction Rear Ends are the main collision types, with
+Straight Movement Angle, Single Vehicle and Same Direction Sideswipe being the other common ones.
+
+
+Now the two previous graphs will be combined to see if collision types are more common at different times of the day.
+
+``` {r}
+
+par(mar=c(5,3,4,0), xpd=T, mfrow=c(1,2), cex=.7)
+tbl1 = table(dat$Collision.Type, dat$dtime$hour, exclude=c("OTHER", "UNKNOWN", "N/A"))
+num_colors = 16
+
+barplot(tbl1, col=rainbow(num_colors), xlab="Number of Accidents", main="# Acc. by Time and Collision Type"
+        , names.arg=c("12am", "1am", "2am", "3am", "4am", "5am" ,
+                      "6am", "7am", "8am", "9am", "10am",
+                      "11am", "12pm", "1pm", "2pm", "3pm","4pm", 
+                      "5pm", "6pm", "7pm", "8pm", "9pm", "10pm", "11pm")
+)
+
+plot.new()
+legend("left", rownames(tbl1),cex=1.3, inset=c(-.13,0), pch=15,
+      col=rainbow(num_colors), title="Collision Types")
+```
+
+
+One interesting difference we can see is that in the early morning, Same Direction Sideswipes become much more common. This might be because of poor lighting and tired drivers not paying attention.
+
+
+---
+
+###**Accidents by Light and Collision Type**
+
+
+To learn more about whether poor lighting is a factor in the incidence of Same Direction Sideswipes
+we will now plot Collision Type with Light
+
+Like before, our first step is to exclude all "OTHER", "UNKNOWN" or "N/A" values
+
+``` {r}
+
+par(mar=c(5,18,4,2), xpd=T, mfrow=c(1,1), cex=.6)
+tbl = table(dat$Light, dat$Collision.Type, exclude=c("OTHER", "UNKNOWN", "N/A"))
+num_colors = 6
+barplot(tbl, horiz=T, las=1, col=rainbow(num_colors), main="# Acc. by Light and Type of Collision", xlab="# Accidents")
+legend("topright", rownames(tbl), cex=1.2, pch=15, col=rainbow(num_colors))
+```
+
+Interestingly, from this perspective it appears that the only Collision Types that often occur at night are Straight Movement Angle, Single Vehicle, Same Direction Sideswipe, Same Direction Rear End, and Head On Left Turn. It appears these types of collisions are most susceptible to light.
+
+
+---
+
+###**Accidents by Injury Severity and Collision Type**
+
+
+Another interesting association to explore is the relationship between Injury Severity and Type of Collision, so now we will plot that
+
+As with our other plots we first exclude "OTHER", "UNKNOWN", and "N/A" from our results
+
+``` {r}
+
+par(mar=c(5,15,2,2), xpd=T, cex=.5)
+tbl = table(dat$Injury.Severity, dat$Collision.Type, exclude=c("OTHER", "UNKNOWN", "N/A"))
+num_colors = 5
+barplot(tbl, horiz=T, las=1, col=rainbow(num_colors), main="# Acc. by Injury Severity and Collision Type", xlab="# Accidents")
+legend("topright", rownames(tbl), cex=1.2, pch=15, col=rainbow(num_colors))
+```
+
+
+It appears that Head On Left Turn collisions have a higher proportion of injuries than other types of collisions. 
+
+--- 
+
+###**Accidents By Month**
+
+
+
+``` {r}
+dat$dtime = strptime(as.character(dat$Crash.Date.Time),
+                     "%m/%d/%Y %I:%M:%S %p",
+                     tz="America/New_York")
+months = dat$dtime$mon
+mnames=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+barplot(table(months),main="# Acc. By Month",ylab="# Accidents",xlab="Month", horiz=FALSE, names.arg=mnames, col="firebrick")
+```
+
+After analyzing the data above, we wanted to see why certain months had more crashes. We thought weather may be a factor. 
+
+
+---
+
+###**Number of Accidents by Month and Weather**
+
+
+``` {r}
+num_colors = 10
+dat$dtime = strptime(as.character(dat$Crash.Date.Time),
+                     "%m/%d/%Y %I:%M:%S %p",
+                     tz="America/New_York")
+tbl1 = table(dat$Weather,dat$dtime$mon, exclude=c("OTHER","UNKNOWN","N/A"))
+  barplot(tbl1,names.arg=mnames,main="# Acc. By Month and Weather",ylab="# Accidents",xlab="Month",
+  col=rainbow(num_colors))
+legend("center", 
+       rownames(tbl1), 
+       col=rainbow(num_colors),
+       ncol = 2,
+       cex = 0.5, inset = c(-1,-.2), pch=15)
+```
+
+
+---
+
+###**Accidents in Rain by Month**
+
+
+Although most crashes happened during clear weather (green), it seems that the month May had more rain. We graphed the 
+crashes on rainy days by month.... 
+
+``` {r}
+dat$dtime = strptime(as.character(dat$Crash.Date.Time),
+                     "%m/%d/%Y %I:%M:%S %p",
+                     tz="America/New_York")
+mnames=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+wet_time = table(dat$Weather,dat$dtime$mon, exclude=c("OTHER","UNKNOWN","N/A"))
+#raining crashes per month 
+barplot(wet_time[6,],main="# Acc. in Rain by Month",ylab="# Accidents",xlab="Month",names.arg = mnames,col="blue")
+```
+
+
+---
+
+###**Accidents in January by Time**
+
+
+May did have more rain than the rest of the months, but May did not have the most crashes by month so we cannot say that Rain significantly increases crashes per month. 
+
+
+``` {r}
+par(cex=.8)
+dat$dtime = strptime(as.character(dat$Crash.Date.Time),
+                     "%m/%d/%Y %I:%M:%S %p",
+                     tz="America/New_York")
+# hours                   day                   month
+tbl2 = table(substr(dat$dtime,12,13),substr(dat$dtime,6,7))
+barplot(tbl2[,1],main="Times of Accidents in January",names.arg = c("12am","1am","2am","3am","4am","5am",
+                               "6am","7am","8am","9am","10am","11am",
+                               "12pm","1pm","2pm","3pm","4pm","5pm",
+                               "6pm","7pm","8pm","9pm","10pm","11pm"),ylab="Time of Day",xlab="# Accidents", horiz = TRUE,las=1,space=c(.5),col="firebrick")
+```
+
+
+---
+
+###**Accidents Involving Drugs/Alcohol by Month**
+
+
+We took a closer look at January since it had most of the crashes. We thought most of these crashes would appear on January 1st because of
+the holiday. We expected to see most crashes to happen early morning on January but only noticed "normal" spikes in rush hour times.
+
+``` {r}
+drugs = dat$Driver.Substance.Abuse[dat$Driver.Substance.Abuse=="ALCOHOL CONTRIBUTED" | dat$Driver.Substance.Abuse=="ALCOHOL PRESENT" | dat$Driver.Substance.Abuse=="ILLEGAL DRUG CONTRIBUTED" | dat$Driver.Substance.Abuse=="ILLEGAL DRUG PRESENT"]
+bd=table(dat$Driver.Substance.Abuse,substr(dat$dtime,6,7))
+mnames=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+barplot(bd[c(2, 6), ],main="Accidents with Drug/Alcohol by Month",names.arg=mnames,ylab="# Accidents",xlab="Month",col=c("red","green"))
+legend("center",
+       fill = c("red","green"),
+       legend=rownames(bd[c(2, 6), ]))
+```
+
+
+---
+
+###**Accidents Involving Alcohol by Month**
+
+
+Next we looked deeper to see which months had notable numbers of alcohol related crashes
+
+
+``` {r} 
+mnames=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+drug_mon=table(dat$Driver.Substance.Abuse,substr(dat$dtime,6,7))
+a = drug_mon["ALCOHOL PRESENT",7]
+b = drug_mon["ALCOHOL PRESENT",12] 
+c = mean(drug_mon["ALCOHOL PRESENT",])
+hard_table = matrix(c(a,b,c),ncol=3,byrow = TRUE)
+colnames(hard_table) = c("July","December","Average")
+rownames(hard_table) = c("Crashes w/ Alcohol Present")
+hard_table = as.table(hard_table)
+
+barplot(drug_mon["ALCOHOL PRESENT",],main="Accidents with Alcohol by Month", names.arg = mnames,xlab="Month",ylab="# Accidents w/ Alcohol",col="firebrick")
+legend("bottom",
+       title = "Max and Min Alcoholic Related Crashes",
+       legend = c(colnames(hard_table),round(hard_table[,1:3])),
+        ncol=2
+       )
+       
+```
+
+The above graph shows alcoholic related crashes. We noticed a reverse bell curve with summer/spring crashes decreasing and winter/fall months increasing with alcohol related crashes.
+
+
+
+###**Summary**
+
+
+Our main obstacle when starting this project was finding interesting relationships to look more into.
+Many of our ideas did not have interesting outcomes. We limited our focus to our two main ideas. 
+We found that different types of collisions occur at different rates depending on the time of day. Collision types more likely to occur during poor light conditions are single vehicle and same direction collisions. Also, head on left turn collisions appear to have the highest injury rate. 
+For our second idea we discovered that there tends to be more accidents during periods of sunny weather. We took a closer look at accidents that had rainy weather and noticed that the month of May had significantly more rain than the rest of the months. January had rain and snow involved accidents, but we thought that most of January's accidents would be early morning on the 1st because of the New Year holiday. That was not the case. The bar graph represents a curve that matches the idea that most accidents happen within rush hour. So we accounted the larger amount of accidents in January to rain and snow (as shown in the weather~month graph). We then thought some months would have more or less accidents because of alcoholic/drug usage. We found the lowest alcohol involved accident month, the most alcohol involved accident month, and the average of all months. We noticed that alcoholic and drug related accidents increased slightly during the winter and fall; we also noticed that the spring and summer seasons decrease with alcoholic and drug accidents. This may be because of the change in weather. 
+
+
